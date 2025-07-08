@@ -101,8 +101,14 @@ class Sunshine01:
         # Declare instance attributes
         self.actions = []
         self.menu = self.tr('&Sunshine Analysis')
+        
+        # 创建工具栏
         self.toolbar = self.iface.addToolBar('Sunshine01')
         self.toolbar.setObjectName('Sunshine01')
+        self.toolbar.setWindowTitle(self.tr('Sunshine Analysis'))
+        
+        # 确保工具栏可见
+        self.toolbar.setVisible(True)
 
     @staticmethod
     def log(
@@ -215,6 +221,8 @@ class Sunshine01:
         if add_to_toolbar:
             # Adds plugin icon to Plugins toolbar
             self.iface.addToolBarIcon(action)
+            # Also add to our custom toolbar
+            self.toolbar.addAction(action)
 
         if add_to_menu:
             self.iface.addPluginToMenu(
@@ -229,7 +237,15 @@ class Sunshine01:
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
         # 添加日出方位角计算功能
-        icon_path = ':/plugins/sunshine01/icon.png'
+        icon_path = os.path.join(self.plugin_dir, 'icon.png')
+        
+        # 检查图标文件是否存在，如果不存在则使用默认图标
+        if not os.path.exists(icon_path):
+            icon_path = os.path.join(self.plugin_dir, 'icon.svg')
+            if not os.path.exists(icon_path):
+                # 如果都没有，使用空字符串（QGIS会使用默认图标）
+                icon_path = ''
+        
         self.add_action(
             icon_path,
             text=self.tr(u'日出分析工具'),
@@ -246,6 +262,10 @@ class Sunshine01:
                 self.tr(u'&Sunshine Analysis'),
                 action)
             self.iface.removeToolBarIcon(action)
+        
+        # Remove the toolbar
+        if hasattr(self, 'toolbar'):
+            self.toolbar.deleteLater()
 
     def run(self):
         """Run method that performs all the real work"""

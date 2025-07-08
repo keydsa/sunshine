@@ -33,7 +33,7 @@ from qgis.PyQt.QtWidgets import QFileDialog, QMessageBox, QProgressBar, QVBoxLay
 from qgis.core import QgsProject, QgsVectorLayer, QgsRasterLayer, QgsMessageLog
 from qgis.utils import iface
 
-# 导入我们的分析功能
+# 导入日出分析功能
 from .sunshine_analysis import SunshineAnalyzer
 
 # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer

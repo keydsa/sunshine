@@ -4,9 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="aa426bb8-562e-4b49-8b7f-a64daf674c81" name="更改" comment="支持GPU加速">
-      <change beforePath="$PROJECT_DIR$/sunshine01.py" beforeDir="false" afterPath="$PROJECT_DIR$/sunshine01.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sunshine01_dialog_base.ui" beforeDir="false" afterPath="$PROJECT_DIR$/sunshine01_dialog_base.ui" afterDir="false" />
+    <list default="true" id="aa426bb8-562e-4b49-8b7f-a64daf674c81" name="更改" comment="GPU使用说明">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -71,13 +70,50 @@
       <option name="project" value="LOCAL" />
       <updated>1751943426495</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="支持GPU加速">
+      <option name="closed" value="true" />
+      <created>1751944628303</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1751944628303</updated>
+    </task>
+    <task id="LOCAL-00005" summary="减少冗余">
+      <option name="closed" value="true" />
+      <created>1751944728907</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1751944728907</updated>
+    </task>
+    <task id="LOCAL-00006" summary="GPU使用说明">
+      <option name="closed" value="true" />
+      <created>1751944805635</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1751944805635</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="创建仓库" />
     <MESSAGE value="更新功能，修改readme" />
     <MESSAGE value="支持GPU加速" />
-    <option name="LAST_COMMIT_MESSAGE" value="支持GPU加速" />
+    <MESSAGE value="减少冗余" />
+    <MESSAGE value="GPU使用说明" />
+    <option name="LAST_COMMIT_MESSAGE" value="GPU使用说明" />
   </component>
 </project>

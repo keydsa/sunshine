@@ -258,6 +258,26 @@
             </property>
            </widget>
           </item>
+          <item row="3" column="0">
+           <widget class="QLabel" name="labelGPU">
+            <property name="toolTip">
+             <string>启用GPU加速计算（需要安装CuPy）</string>
+            </property>
+            <property name="text">
+             <string>GPU加速:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="1">
+           <widget class="QCheckBox" name="checkGPU">
+            <property name="toolTip">
+             <string>启用GPU加速计算，大幅提升处理速度（需要安装CuPy和CUDA）</string>
+            </property>
+            <property name="text">
+             <string>启用GPU加速</string>
+            </property>
+           </widget>
+          </item>
          </layout>
         </widget>
        </item>

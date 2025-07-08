@@ -338,7 +338,194 @@ class SunshineAnalyzer:
         
         return batch_indices, scores
     
-    def analyze_sunrise_visibility(self, dem, points, output, date=None, max_distance=50000, initial_step=100, batch_size=500, progress_callback=None, status_callback=None):
+    def gpu_calculate_sunrise_scores(self, points, dem_array, transform, date=None, max_dist=50000, initial_step=100):
+        """
+        使用GPU批量计算日出可见性评分
+        """
+        if not GPU_AVAILABLE or cp is None:
+            raise RuntimeError("GPU计算不可用，请安装CuPy")
+
+        # 将数据转移到GPU
+        dem_gpu = cp.asarray(dem_array)
+        transform_gpu = cp.array(transform)
+
+        # 结果数组
+        scores = cp.zeros(len(points))
+
+        # 地球参数
+        R = 6371000.0
+        sun_elevation = -0.833  # 太阳中心高度角
+
+        # 将点坐标转换为GPU数组
+        lons = cp.array([p.x for p in points])
+        lats = cp.array([p.y for p in points])
+
+        # 计算日出方位角 (改进版，GPU实现)
+        if date is None:
+            # 简化计算
+            azimuths = cp.where(lats > 0,
+                                90 - 30 * cp.cos(cp.radians(lats)),
+                                90 + 30 * cp.cos(cp.radians(lats)))
+        else:
+            # 使用改进的方位角计算
+            if ASTRAL_AVAILABLE:
+                try:
+                    # 解析日期字符串
+                    if isinstance(date, str):
+                        date_obj = datetime.strptime(date, "%Y-%m-%d").date()
+                    else:
+                        date_obj = date
+                    
+                    # 计算一年中的天数
+                    day_of_year = date_obj.timetuple().tm_yday
+                    
+                    # 计算太阳赤纬
+                    declination = 23.45 * cp.sin(cp.radians(360 * (day_of_year - 80) / 365))
+                    
+                    # 计算方位角偏移
+                    azimuth_offset = cp.where(lats > 0,
+                                             -declination * cp.cos(cp.radians(lats)),
+                                             declination * cp.cos(cp.radians(cp.abs(lats))))
+                    
+                    azimuths = 90 + azimuth_offset
+                    
+                except Exception as e:
+                    self.log(f"GPU精确计算失败: {e}，使用默认值", level=1)
+                    azimuths = cp.full(len(points), 90.0)
+            else:
+                # 简化计算
+                if isinstance(date, str):
+                    try:
+                        date_obj = datetime.strptime(date, "%Y-%m-%d")
+                        day_of_year = date_obj.timetuple().tm_yday
+                        declination = 23.45 * math.sin(math.radians(360 * (day_of_year - 80) / 365))
+                        
+                        # 为每个点计算方位角
+                        azimuths = cp.zeros(len(points))
+                        for i in range(len(points)):
+                            lat_val = cp.asnumpy(lats[i])
+                            if lat_val > 0:  # 北半球
+                                azimuth_offset = -declination * math.cos(math.radians(lat_val))
+                            else:  # 南半球
+                                azimuth_offset = declination * math.cos(math.radians(abs(lat_val)))
+                            azimuths[i] = 90 + azimuth_offset
+                            
+                    except:
+                        azimuths = cp.full(len(points), 90.0)
+                else:
+                    azimuths = cp.full(len(points), 90.0)
+
+        # 获取目标点高程
+        xs = (lons - transform_gpu[0]) / transform_gpu[1]
+        ys = (lats - transform_gpu[3]) / transform_gpu[5]
+
+        x1s = cp.floor(xs).astype(int)
+        y1s = cp.floor(ys).astype(int)
+        dxs = xs - x1s
+        dys = ys - y1s
+
+        # 边界检查
+        valid_mask = (x1s >= 0) & (y1s >= 0) & (x1s < dem_gpu.shape[1] - 1) & (y1s < dem_gpu.shape[0] - 1)
+
+        # 获取四个邻近点的高程
+        z11 = dem_gpu[y1s, x1s]
+        z12 = dem_gpu[y1s, x1s + 1]
+        z21 = dem_gpu[y1s + 1, x1s]
+        z22 = dem_gpu[y1s + 1, x1s + 1]
+
+        # 双线性插值
+        h_start = (z11 * (1 - dxs) * (1 - dys) +
+                   z12 * dxs * (1 - dys) +
+                   z21 * (1 - dxs) * dys +
+                   z22 * dxs * dys)
+
+        # 初始化
+        max_elev_angles = cp.full(len(points), -90.0)
+        distances = cp.full(len(points), initial_step, dtype=cp.float32)
+        steps = cp.full(len(points), initial_step, dtype=cp.float32)
+        sample_counts = cp.zeros(len(points), dtype=cp.int32)
+
+        # 迭代计算
+        for _ in range(1000):  # 最大迭代次数
+            # 计算采样点坐标
+            lon_rad = cp.radians(lons)
+            lat_rad = cp.radians(lats)
+            azimuth_rad = cp.radians(azimuths)
+            angular_distances = distances / R
+
+            # 计算终点坐标
+            sin_lat1 = cp.sin(lat_rad)
+            cos_lat1 = cp.cos(lat_rad)
+            sin_angular = cp.sin(angular_distances)
+            cos_angular = cp.cos(angular_distances)
+
+            lat2 = cp.arcsin(sin_lat1 * cos_angular +
+                             cos_lat1 * sin_angular * cp.cos(azimuth_rad))
+
+            lon2 = lon_rad + cp.arctan2(cp.sin(azimuth_rad) * sin_angular * cos_lat1,
+                                        cos_angular - sin_lat1 * cp.sin(lat2))
+
+            lon_p = cp.degrees(lon2)
+            lat_p = cp.degrees(lat2)
+
+            # 获取采样点高程 (简化版，实际应使用双线性插值)
+            xs_p = (lon_p - transform_gpu[0]) / transform_gpu[1]
+            ys_p = (lat_p - transform_gpu[3]) / transform_gpu[5]
+
+            x1s_p = cp.floor(xs_p).astype(int)
+            y1s_p = cp.floor(ys_p).astype(int)
+            dxs_p = xs_p - x1s_p
+            dys_p = ys_p - y1s_p
+
+            # 边界检查
+            valid_mask_p = (x1s_p >= 0) & (y1s_p >= 0) & (x1s_p < dem_gpu.shape[1] - 1) & (y1s_p < dem_gpu.shape[0] - 1)
+
+            # 获取四个邻近点的高程
+            z11_p = cp.where(valid_mask_p, dem_gpu[y1s_p, x1s_p], 0)
+            z12_p = cp.where(valid_mask_p, dem_gpu[y1s_p, x1s_p + 1], 0)
+            z21_p = cp.where(valid_mask_p, dem_gpu[y1s_p + 1, x1s_p], 0)
+            z22_p = cp.where(valid_mask_p, dem_gpu[y1s_p + 1, x1s_p + 1], 0)
+
+            # 双线性插值
+            h_p = (z11_p * (1 - dxs_p) * (1 - dys_p) +
+                   z12_p * dxs_p * (1 - dys_p) +
+                   z21_p * (1 - dxs_p) * dys_p +
+                   z22_p * dxs_p * dys_p)
+
+            # 地球曲率修正
+            h_corr = - (distances ** 2) / (2 * R * 0.17)
+            h_p_adjusted = h_p + h_corr
+
+            # 计算视线仰角
+            elev_angles = cp.degrees(cp.arctan2(h_p_adjusted - h_start, distances))
+
+            # 更新最大仰角
+            max_elev_angles = cp.maximum(max_elev_angles, elev_angles)
+
+            # 提前终止条件
+            terminate_mask = (max_elev_angles > sun_elevation + 5.0) | (distances > max_dist)
+
+            # 动态调整步长
+            steps = cp.minimum(initial_step * (1 + distances / 10000), max_dist / 10)
+            distances += steps
+            sample_counts += 1
+
+            # 检查是否所有点都已完成
+            if cp.all(terminate_mask):
+                break
+
+        # 计算评分
+        diff = max_elev_angles - sun_elevation
+        scores = cp.zeros(len(points))
+        scores = cp.where(max_elev_angles <= sun_elevation, 5.0, scores)
+        scores = cp.where((diff < 0.5) & (scores == 0), 4.0, scores)
+        scores = cp.where((diff < 1.0) & (scores == 0), 3.0, scores)
+        scores = cp.where((diff < 2.0) & (scores == 0), 2.0, scores)
+        scores = cp.where((diff < 5.0) & (scores == 0), 1.0, scores)
+
+        return cp.asnumpy(scores)
+    
+    def analyze_sunrise_visibility(self, dem, points, output, date=None, max_distance=50000, initial_step=100, batch_size=500, use_gpu=False, progress_callback=None, status_callback=None):
         """
         dem: 可以是QgsRasterLayer对象或文件路径
         points: 可以是QgsVectorLayer对象或文件路径
@@ -461,23 +648,67 @@ class SunshineAnalyzer:
             points_layer_for_analysis.crs(),
             driver_name
         )
-        for i, feat in enumerate(features):
-            geom = feat.geometry()
-            pt = geom.asPoint()
-            lon, lat = pt.x(), pt.y()
-            azimuth = self.calculate_sunrise_azimuth(lat, lon, date)
-            score = self.calculate_sunrise_score(
-                lon, lat, dem_array, transform, date, max_distance, initial_step
-            )
-            new_feat = QgsFeature(fields)
-            new_feat.setGeometry(geom)
-            attrs = list(feat.attributes())
-            attrs.append(score)
-            attrs.append(azimuth)
-            new_feat.setAttributes(attrs)
-            writer.addFeature(new_feat)
-            if progress_callback:
-                progress_callback(int((i+1)/total*100))
+        # 检查是否使用GPU加速
+        if use_gpu and GPU_AVAILABLE:
+            try:
+                if status_callback:
+                    status_callback("使用GPU加速计算...")
+                
+                # 准备点数据
+                points_data = []
+                for feat in features:
+                    geom = feat.geometry()
+                    pt = geom.asPoint()
+                    points_data.append(pt)
+                
+                # 使用GPU批量计算
+                scores = self.gpu_calculate_sunrise_scores(
+                    points_data, dem_array, transform, date, max_distance, initial_step
+                )
+                
+                # 写入结果
+                for i, (feat, score) in enumerate(zip(features, scores)):
+                    geom = feat.geometry()
+                    pt = geom.asPoint()
+                    lon, lat = pt.x(), pt.y()
+                    azimuth = self.calculate_sunrise_azimuth(lat, lon, date)
+                    
+                    new_feat = QgsFeature(fields)
+                    new_feat.setGeometry(geom)
+                    attrs = list(feat.attributes())
+                    attrs.append(score)
+                    attrs.append(azimuth)
+                    new_feat.setAttributes(attrs)
+                    writer.addFeature(new_feat)
+                    
+                    if progress_callback:
+                        progress_callback(int((i+1)/total*100))
+                
+            except Exception as e:
+                if status_callback:
+                    status_callback(f"GPU计算失败: {e}，回退到CPU计算")
+                # 回退到CPU计算
+                use_gpu = False
+        
+        # CPU计算（如果GPU不可用或失败）
+        if not use_gpu or not GPU_AVAILABLE:
+            for i, feat in enumerate(features):
+                geom = feat.geometry()
+                pt = geom.asPoint()
+                lon, lat = pt.x(), pt.y()
+                azimuth = self.calculate_sunrise_azimuth(lat, lon, date)
+                score = self.calculate_sunrise_score(
+                    lon, lat, dem_array, transform, date, max_distance, initial_step
+                )
+                new_feat = QgsFeature(fields)
+                new_feat.setGeometry(geom)
+                attrs = list(feat.attributes())
+                attrs.append(score)
+                attrs.append(azimuth)
+                new_feat.setAttributes(attrs)
+                writer.addFeature(new_feat)
+                if progress_callback:
+                    progress_callback(int((i+1)/total*100))
         del writer
         # 如果需要再投影回原始坐标系
         if points_layer.crs() != wgs84:

@@ -55,6 +55,12 @@ class AnalysisThread(QThread):
     def run(self):
         try:
             self.status.emit("开始分析...")
+            
+            # 检查是否使用GPU
+            use_gpu = self.params.get('use_gpu', False)
+            if use_gpu:
+                self.status.emit("使用GPU加速计算...")
+            
             result = self.analyzer.analyze_sunrise_visibility(
                 progress_callback=self.progress.emit,
                 status_callback=self.status.emit,
@@ -115,6 +121,8 @@ class SunshineDialog(QtWidgets.QDialog, FORM_CLASS):
                 self.spinInitialStep.valueChanged.connect(self.update_parameters)
             if hasattr(self, 'spinBatchSize'):
                 self.spinBatchSize.valueChanged.connect(self.update_parameters)
+            if hasattr(self, 'checkGPU'):
+                self.checkGPU.stateChanged.connect(self.on_gpu_check_changed)
             
             # 坐标系选择
             if hasattr(self, 'btnSelectCRS'):
@@ -163,6 +171,13 @@ class SunshineDialog(QtWidgets.QDialog, FORM_CLASS):
             self.selected_custom_crs = None
             if hasattr(self, 'btnSelectCRS'):
                 self.btnSelectCRS.setEnabled(False)  # 初始状态禁用
+            
+            # 初始化GPU加速
+            self.gpu_available = self.check_gpu_availability()
+            if hasattr(self, 'checkGPU'):
+                self.checkGPU.setEnabled(self.gpu_available)
+                if not self.gpu_available:
+                    self.checkGPU.setToolTip("GPU加速不可用，请安装CuPy和CUDA")
                 
         except Exception as e:
             print(f"UI初始化错误: {e}")
@@ -258,11 +273,16 @@ class SunshineDialog(QtWidgets.QDialog, FORM_CLASS):
         initial_step = self.spinInitialStep.value()
         batch_size = self.spinBatchSize.value()
         
+        # 获取GPU状态
+        gpu_status = "启用" if (hasattr(self, 'checkGPU') and self.checkGPU.isChecked()) else "禁用"
+        gpu_available = "可用" if self.gpu_available else "不可用"
+        
         # 更新参数说明
         self.labelParamInfo.setText(
             f"最大分析距离: {max_dist:,} 米\n"
             f"初始步长: {initial_step} 米\n"
-            f"批次大小: {batch_size} 个点"
+            f"批次大小: {batch_size} 个点\n"
+            f"GPU加速: {gpu_status} ({gpu_available})"
         )
     
 
@@ -346,6 +366,37 @@ class SunshineDialog(QtWidgets.QDialog, FORM_CLASS):
         else:
             return QgsCoordinateReferenceSystem('EPSG:4326')
     
+    def check_gpu_availability(self):
+        """检查GPU加速是否可用"""
+        try:
+            import cupy as cp
+            # 尝试创建一个简单的GPU数组来测试
+            test_array = cp.array([1, 2, 3])
+            del test_array
+            return True
+        except ImportError:
+            return False
+        except Exception:
+            return False
+    
+    def on_gpu_check_changed(self, state):
+        """GPU复选框状态改变时的处理"""
+        if state == 2:  # 选中
+            if not self.gpu_available:
+                QMessageBox.warning(
+                    self,
+                    "GPU加速不可用",
+                    "GPU加速功能不可用。\n\n"
+                    "要启用GPU加速，请安装以下组件：\n"
+                    "1. CUDA Toolkit (https://developer.nvidia.com/cuda-downloads)\n"
+                    "2. CuPy: pip install cupy-cuda11x (根据您的CUDA版本选择)\n\n"
+                    "安装完成后重启QGIS即可使用GPU加速功能。"
+                )
+                self.checkGPU.setChecked(False)
+        else:
+            # 取消选中
+            pass
+    
     def start_analysis(self):
         """启动分析"""
         # 获取输入
@@ -362,6 +413,7 @@ class SunshineDialog(QtWidgets.QDialog, FORM_CLASS):
             'max_distance': self.spinMaxDistance.value() if hasattr(self, 'spinMaxDistance') else 50000,
             'initial_step': self.spinInitialStep.value() if hasattr(self, 'spinInitialStep') else 100,
             'batch_size': self.spinBatchSize.value() if hasattr(self, 'spinBatchSize') else 500,
+            'use_gpu': self.checkGPU.isChecked() if hasattr(self, 'checkGPU') else False,
         }
         # 启动线程
         self.progressBar.setVisible(True)

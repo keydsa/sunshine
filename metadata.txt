@@ -1,0 +1,47 @@
+# This file contains metadata for your plugin.
+
+# This file should be included when you package your plugin.# Mandatory items:
+
+[general]
+name=Sunshine Analysis
+qgisMinimumVersion=3.0
+description=日出方位角计算和日出可见性分析工具
+version=1.0
+author=高家垚（资源与环境科学学院）
+email=2177904925@qq.com
+
+about=日出分析工具是一个专业的QGIS插件，用于计算指定日期的日出方位角，并分析地形对日出可见性的影响。该工具可以处理大量点数据，通过射线追踪算法评估每个点的日出观看条件，输出0-5分的评分结果。
+
+tracker=http://bugs
+repository=http://repo
+# End of mandatory metadata
+
+# Recommended items:
+
+hasProcessingProvider=no
+# Uncomment the following line and add your changelog:
+# changelog=
+
+# Tags are comma separated with spaces allowed
+tags=sunrise,azimuth,visibility,analysis,terrain,raytracing
+
+homepage=http://47.111.136.83:8080/ourPages2/gao.html
+category=Analysis
+icon=icon.svg
+# experimental flag
+experimental=False
+
+# deprecated flag (applies to the whole plugin, not just a single version)
+deprecated=False
+
+# Since QGIS 3.8, a comma separated list of plugins to be installed
+# (or upgraded) can be specified.
+# Check the documentation for more information.
+# plugin_dependencies=
+
+Category of the plugin: Raster, Vector, Database or Web
+# category=Analysis
+
+# If the plugin can run on QGIS Server.
+server=False
+

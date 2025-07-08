@@ -1,0 +1,21 @@
+# Sunshine Analysis Plugin Dependencies
+# Core scientific computing
+numpy>=1.20.0
+scipy>=1.7.0
+
+# Geospatial data processing
+geopandas>=0.10.0
+pyproj>=3.0.0
+gdal>=3.0.0
+
+# Visualization
+matplotlib>=3.3.0
+
+# Progress tracking (optional - will use simple progress if not available)
+tqdm>=4.60.0
+
+# Optional: Astronomical calculations (for precise sunrise azimuth)
+astral>=2.2
+
+# Optional: GPU acceleration (for large datasets)
+# cupy>=9.0.0  # Uncomment if GPU acceleration is needed 

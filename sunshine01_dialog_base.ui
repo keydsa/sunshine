@@ -13,6 +13,10 @@
   <property name="windowTitle">
    <string>日出分析工具</string>
   </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>icon.svg</normaloff>icon.svg</iconset>
+  </property>
   <property name="modal">
    <bool>true</bool>
   </property>
@@ -20,7 +24,7 @@
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>1</number>
+      <number>0</number>
      </property>
      <widget class="QWidget" name="tabMain">
       <attribute name="title">
@@ -270,8 +274,17 @@
           </item>
           <item row="3" column="1">
            <widget class="QCheckBox" name="checkGPU">
+            <property name="cursor">
+             <cursorShape>PointingHandCursor</cursorShape>
+            </property>
+            <property name="mouseTracking">
+             <bool>true</bool>
+            </property>
             <property name="toolTip">
              <string>启用GPU加速计算，大幅提升处理速度（需要安装CuPy和CUDA）</string>
+            </property>
+            <property name="inputMethodHints">
+             <set>Qt::ImhNone</set>
             </property>
             <property name="text">
              <string>启用GPU加速</string>

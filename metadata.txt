@@ -6,7 +6,7 @@
 name=Sunshine Analysis
 qgisMinimumVersion=3.0
 description=日出方位角计算和日出可见性分析工具
-version=1.0
+version=1.1
 author=高家垚（资源与环境科学学院）
 email=2177904925@qq.com
 

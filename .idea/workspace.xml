@@ -4,8 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="aa426bb8-562e-4b49-8b7f-a64daf674c81" name="更改" comment="减少冗余">
-      <change beforePath="$PROJECT_DIR$/TROUBLESHOOTING.md" beforeDir="false" afterPath="$PROJECT_DIR$/TROUBLESHOOTING.md" afterDir="false" />
+    <list default="true" id="aa426bb8-562e-4b49-8b7f-a64daf674c81" name="更改" comment="更新错误排查">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sunshine01.py" beforeDir="false" afterPath="$PROJECT_DIR$/sunshine01.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -34,7 +35,7 @@
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "git-widget-placeholder": "master",
     "last_opened_file_path": "E:/pluginDevelopment/sunshine01",
-    "settings.editor.selected.configurable": "preferences.pluginManager"
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
   }
 }]]></component>
   <component name="SharedIndexes">
@@ -110,7 +111,15 @@
       <option name="project" value="LOCAL" />
       <updated>1751946375203</updated>
     </task>
-    <option name="localTasksCounter" value="9" />
+    <task id="LOCAL-00009" summary="更新错误排查">
+      <option name="closed" value="true" />
+      <created>1751947319365</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1751947319365</updated>
+    </task>
+    <option name="localTasksCounter" value="10" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -130,6 +139,7 @@
     <MESSAGE value="支持GPU加速" />
     <MESSAGE value="GPU使用说明" />
     <MESSAGE value="减少冗余" />
-    <option name="LAST_COMMIT_MESSAGE" value="减少冗余" />
+    <MESSAGE value="更新错误排查" />
+    <option name="LAST_COMMIT_MESSAGE" value="更新错误排查" />
   </component>
 </project>

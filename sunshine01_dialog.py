@@ -5,10 +5,10 @@
                                  A QGIS plugin
  日出方位角计算和日出可见性分析对话框
                              -------------------
-        begin                : 2025-01-27
+        begin                : 2025-07-07
         git sha              : $Format:%H$
-        copyright            : (C) 2025 by Sunshine Analysis
-        email                : sunshine@example.com
+        copyright            : (C) 2025 by Gao Jiayao
+        email                : 2177904925@qq.com
  ***************************************************************************/
 
 /***************************************************************************

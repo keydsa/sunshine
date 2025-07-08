@@ -19,7 +19,7 @@ sunshine01/
 ├── sunshine01_dialog_base.ui      # 用户界面定义
 ├── sunshine_analysis.py           # 核心分析功能
 ├── metadata.txt                   # 插件元数据
-└── icon.png                       # 插件图标
+└── icon.svg                       # 插件图标
 ```
 
 #### 2. 运行调试脚本
@@ -49,27 +49,19 @@ python install_dependencies.py
 - pyproj
 - tqdm
 
-#### 4. 测试简化版本
-如果完整版本有问题，可以测试简化版本：
-
-1. 备份当前的 `__init__.py`
-2. 复制 `__init__simple.py` 为 `__init__.py`
-3. 重启QGIS
-4. 测试简化版本是否能加载
-
-#### 5. 检查QGIS版本兼容性
+#### 4. 检查QGIS版本兼容性
 确保：
 - QGIS版本 >= 3.0
 - Python版本 >= 3.7
 - 插件目录路径正确
 
-#### 6. 查看详细错误信息
+#### 5. 查看详细错误信息
 在QGIS中：
 1. 打开 "视图" → "消息日志"
 2. 查看Python错误标签页
 3. 寻找具体的错误信息
 
-#### 7. 常见问题及解决方案
+#### 6. 常见问题及解决方案
 
 ##### 问题1：模块导入错误
 **错误信息**：`ModuleNotFoundError: No module named 'xxx'`
@@ -128,16 +120,12 @@ print(f"插件目录存在: {os.path.exists(plugin_dir)}")
 
 如果问题持续存在，可以：
 
-1. **使用简化版本**：
-   - 使用 `sunshine01_simple.py` 作为主文件
-   - 修改 `__init__.py` 导入简化版本
-
-2. **分步测试**：
+1. **分步测试**：
    - 先测试基本功能
    - 逐步添加复杂功能
    - 逐个模块测试
 
-3. **环境隔离**：
+2. **环境隔离**：
    - 创建新的Python虚拟环境
    - 重新安装所有依赖
    - 测试插件功能

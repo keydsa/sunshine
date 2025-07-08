@@ -107,8 +107,6 @@ class SunshineDialog(QtWidgets.QDialog, FORM_CLASS):
             # 分析按钮
             if hasattr(self, 'btnAnalyze'):
                 self.btnAnalyze.clicked.connect(self.start_analysis)
-            if hasattr(self, 'btnCalculateAzimuth'):
-                self.btnCalculateAzimuth.clicked.connect(self.calculate_azimuth_only)
             
             # 参数变化
             if hasattr(self, 'spinMaxDistance'):
@@ -267,32 +265,7 @@ class SunshineDialog(QtWidgets.QDialog, FORM_CLASS):
             f"批次大小: {batch_size} 个点"
         )
     
-    def calculate_azimuth_only(self):
-        """仅计算日出方位角"""
-        try:
-            # 获取当前地图中心点
-            canvas = iface.mapCanvas()
-            center = canvas.center()
-            
-            # 获取日期
-            analysis_date = self.dateEdit.date().toPyDate()
-            
-            # 计算方位角
-            azimuth = self.analyzer.calculate_sunrise_azimuth(
-                center.y(), center.x(), analysis_date
-            )
-            
-            # 显示结果
-            QMessageBox.information(
-                self,
-                "日出方位角",
-                f"地图中心点 ({center.y():.4f}, {center.x():.4f})\n"
-                f"日期: {analysis_date}\n"
-                f"日出方位角: {azimuth:.1f}°"
-            )
-            
-        except Exception as e:
-            QMessageBox.critical(self, "错误", f"计算失败: {str(e)}")
+
     
     def populate_layer_combos(self):
         """填充DEM和点图层下拉框"""

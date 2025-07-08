@@ -25,7 +25,7 @@ hasProcessingProvider=no
 # Tags are comma separated with spaces allowed
 tags=sunrise,azimuth,visibility,analysis,terrain,raytracing
 
-homepage=http://47.111.136.83:8080/ourPages2/gao.html
+homepage=https://github.com/keydsa/sunshine
 category=Analysis
 icon=icon.svg
 # experimental flag

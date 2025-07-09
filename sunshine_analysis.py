@@ -90,7 +90,15 @@ except ImportError:
 try:
     import cupy as cp
     GPU_AVAILABLE = True
-except ImportError:
+    print("[SunshineAnalysis] CuPy导入成功，GPU可用")
+    # GPU预热，提前初始化CUDA上下文
+    try:
+        cp.zeros(1)
+        print("[SunshineAnalysis] GPU预热完成，CUDA上下文已初始化")
+    except Exception as e:
+        print(f"[SunshineAnalysis] GPU预热失败: {e}")
+except Exception as e:
+    print(f"[SunshineAnalysis] CuPy导入失败: {e}")
     cp = None
     GPU_AVAILABLE = False
 
@@ -345,6 +353,10 @@ class SunshineAnalyzer:
         if not GPU_AVAILABLE or cp is None:
             raise RuntimeError("GPU计算不可用，请安装CuPy")
 
+        # 日志：检查points类型
+        print(f"[SunshineAnalysis] points类型: {type(points)}, 第一个元素: {type(points[0])}")
+        print(f"[SunshineAnalysis] 示例点: {points[0]}")
+
         # 将数据转移到GPU
         dem_gpu = cp.asarray(dem_array)
         transform_gpu = cp.array(transform)
@@ -356,9 +368,13 @@ class SunshineAnalyzer:
         R = 6371000.0
         sun_elevation = -0.833  # 太阳中心高度角
 
-        # 将点坐标转换为GPU数组
-        lons = cp.array([p.x for p in points])
-        lats = cp.array([p.y for p in points])
+        # 将点坐标转换为GPU数组，强制float32
+        try:
+            lons = cp.array([float(p.x()) for p in points], dtype=cp.float32)
+            lats = cp.array([float(p.y()) for p in points], dtype=cp.float32)
+        except Exception as e:
+            print(f"[SunshineAnalysis] 点坐标转换失败: {e}")
+            raise
 
         # 计算日出方位角 (改进版，GPU实现)
         if date is None:
@@ -612,7 +628,7 @@ class SunshineAnalyzer:
             arr = np.frombuffer(ba, dtype=np.int16)
             if arr.size == width * height:
                 dem_array = arr.reshape((height, width))
-                print('自动检测到DEM为Int16类型')
+                print('[SunshineAnalysis] 自动检测到DEM为Int16类型')
                 if status_callback:
                     status_callback('自动检测到DEM为Int16类型')
             else:
@@ -649,49 +665,55 @@ class SunshineAnalyzer:
             driver_name
         )
         # 检查是否使用GPU加速
+        print(f"[SunshineAnalysis] use_gpu参数: {use_gpu}, GPU_AVAILABLE: {GPU_AVAILABLE}")
         if use_gpu and GPU_AVAILABLE:
             try:
+                print("[SunshineAnalysis] 正在使用GPU分支进行分析...")
                 if status_callback:
                     status_callback("使用GPU加速计算...")
-                
                 # 准备点数据
                 points_data = []
                 for feat in features:
                     geom = feat.geometry()
                     pt = geom.asPoint()
                     points_data.append(pt)
-                
                 # 使用GPU批量计算
                 scores = self.gpu_calculate_sunrise_scores(
                     points_data, dem_array, transform, date, max_distance, initial_step
                 )
-                
                 # 写入结果
                 for i, (feat, score) in enumerate(zip(features, scores)):
                     geom = feat.geometry()
                     pt = geom.asPoint()
                     lon, lat = pt.x(), pt.y()
                     azimuth = self.calculate_sunrise_azimuth(lat, lon, date)
-                    
+                    # 强制类型转换，防止空值
+                    try:
+                        score_val = float(score)
+                    except Exception:
+                        score_val = -1.0
+                    try:
+                        azimuth_val = float(azimuth)
+                    except Exception:
+                        azimuth_val = -1.0
                     new_feat = QgsFeature(fields)
                     new_feat.setGeometry(geom)
                     attrs = list(feat.attributes())
-                    attrs.append(score)
-                    attrs.append(azimuth)
+                    attrs.append(score_val)
+                    attrs.append(azimuth_val)
                     new_feat.setAttributes(attrs)
                     writer.addFeature(new_feat)
-                    
                     if progress_callback:
                         progress_callback(int((i+1)/total*100))
-                
             except Exception as e:
+                print(f"[SunshineAnalysis] GPU计算失败: {e}，回退到CPU计算")
                 if status_callback:
                     status_callback(f"GPU计算失败: {e}，回退到CPU计算")
                 # 回退到CPU计算
                 use_gpu = False
-        
         # CPU计算（如果GPU不可用或失败）
         if not use_gpu or not GPU_AVAILABLE:
+            print(f"[SunshineAnalysis] 正在使用CPU分支进行分析... use_gpu: {use_gpu}, GPU_AVAILABLE: {GPU_AVAILABLE}")
             for i, feat in enumerate(features):
                 geom = feat.geometry()
                 pt = geom.asPoint()
@@ -700,11 +722,20 @@ class SunshineAnalyzer:
                 score = self.calculate_sunrise_score(
                     lon, lat, dem_array, transform, date, max_distance, initial_step
                 )
+                # 强制类型转换，防止空值
+                try:
+                    score_val = float(score)
+                except Exception:
+                    score_val = -1.0
+                try:
+                    azimuth_val = float(azimuth)
+                except Exception:
+                    azimuth_val = -1.0
                 new_feat = QgsFeature(fields)
                 new_feat.setGeometry(geom)
                 attrs = list(feat.attributes())
-                attrs.append(score)
-                attrs.append(azimuth)
+                attrs.append(score_val)
+                attrs.append(azimuth_val)
                 new_feat.setAttributes(attrs)
                 writer.addFeature(new_feat)
                 if progress_callback:

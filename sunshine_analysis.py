@@ -541,6 +541,88 @@ class SunshineAnalyzer:
 
         return cp.asnumpy(scores)
     
+    def apply_point_style(self, output_path, status_callback=None):
+        """
+        为输出结果设置点样式
+        根据评分值设置不同的颜色和大小
+        """
+        try:
+            # 加载输出图层
+            output_layer = QgsVectorLayer(output_path, "Sunrise Analysis Results", "ogr")
+            if not output_layer.isValid():
+                self.log(f"无法加载输出图层: {output_path}", level=2)
+                return False
+            
+            # 检查是否有score字段
+            score_field_idx = output_layer.fields().indexOf('score')
+            if score_field_idx == -1:
+                self.log("输出图层中没有找到'score'字段", level=2)
+                return False
+            
+            # 导入必要的QGIS样式模块
+            from qgis.core import QgsSymbol, QgsMarkerSymbol, QgsRendererCategory, QgsCategorizedSymbolRenderer
+            from PyQt5.QtGui import QColor
+            
+            # 定义评分颜色映射
+            score_colors = {
+                0: QColor(255, 0, 0),      # 红色 - 完全遮挡
+                1: QColor(255, 69, 0),     # 红橙色 - 几乎完全遮挡
+                2: QColor(255, 140, 0),    # 橙色 - 严重遮挡
+                3: QColor(255, 215, 0),    # 金黄色 - 部分遮挡
+                4: QColor(173, 255, 47),   # 黄绿色 - 轻微遮挡
+                5: QColor(0, 255, 0)       # 绿色 - 无遮挡
+            }
+            
+            # 定义评分大小映射
+            score_sizes = {
+                0: 2.0,    # 完全遮挡 - 小点
+                1: 2.5,    # 几乎完全遮挡
+                2: 3.0,    # 严重遮挡
+                3: 3.5,    # 部分遮挡
+                4: 4.0,    # 轻微遮挡
+                5: 5.0     # 无遮挡 - 大点
+            }
+            
+            # 创建分类渲染器
+            categories = []
+            
+            for score in range(6):  # 0-5分
+                # 创建符号
+                symbol = QgsMarkerSymbol.createSimple({
+                    'name': 'circle',
+                    'color': score_colors[score].name(),
+                    'outline_color': 'black',
+                    'outline_width': '0.2',
+                    'size': str(score_sizes[score])
+                })
+                
+                # 创建分类
+                category = QgsRendererCategory(score, symbol, f"评分 {score}")
+                categories.append(category)
+            
+            # 设置渲染器
+            renderer = QgsCategorizedSymbolRenderer('score', categories)
+            output_layer.setRenderer(renderer)
+            
+            # 刷新图层
+            output_layer.triggerRepaint()
+            
+            # 添加到项目
+            from qgis.core import QgsProject
+            QgsProject.instance().addMapLayer(output_layer)
+            
+            if status_callback:
+                status_callback(f"点样式设置完成，已添加到地图")
+            
+            self.log("点样式设置成功", level=0)
+            return True
+            
+        except Exception as e:
+            self.log(f"设置点样式失败: {e}", level=2)
+            if status_callback:
+                status_callback(f"点样式设置失败: {e}")
+            return False
+    
     def analyze_sunrise_visibility(self, dem, points, output, date=None, max_distance=50000, initial_step=100, batch_size=500, use_gpu=False, progress_callback=None, status_callback=None):
         """
         dem: 可以是QgsRasterLayer对象或文件路径
@@ -764,6 +846,10 @@ class SunshineAnalyzer:
         test_layer = QgsVectorLayer(output_path, "test", "ogr")
         if not test_layer.isValid():
             raise ValueError(f"输出文件无效: {output_path}")
+        
+        # 设置点样式
+        self.apply_point_style(output_path, status_callback)
+        
         if status_callback:
             status_callback(f"分析完成，结果已保存到: {output_path}")
         if progress_callback:

@@ -543,10 +543,23 @@ class SunshineAnalyzer:
     
     def apply_point_style(self, output_path, status_callback=None):
         """
-        为输出结果设置点样式
-        根据评分值设置不同的颜色和大小
+        为输出结果设置点样式并添加到地图
+        根据评分值设置不同的颜色和大小，只添加可视化图层
         """
         try:
+            # 检查是否已经存在同名图层，如果存在则先移除
+            from qgis.core import QgsProject
+            project = QgsProject.instance()
+            
+            # 查找并移除可能存在的同名图层
+            layers_to_remove = []
+            for layer in project.mapLayers().values():
+                if layer.name() == "Sunrise Analysis Results" or layer.source() == output_path:
+                    layers_to_remove.append(layer.id())
+            
+            for layer_id in layers_to_remove:
+                project.removeMapLayer(layer_id)
+            
             # 加载输出图层
             output_layer = QgsVectorLayer(output_path, "Sunrise Analysis Results", "ogr")
             if not output_layer.isValid():
@@ -607,14 +620,13 @@ class SunshineAnalyzer:
             # 刷新图层
             output_layer.triggerRepaint()
             
-            # 添加到项目
-            from qgis.core import QgsProject
-            QgsProject.instance().addMapLayer(output_layer)
+            # 添加到项目（只添加可视化图层）
+            project.addMapLayer(output_layer)
             
             if status_callback:
-                status_callback(f"点样式设置完成，已添加到地图")
+                status_callback(f"点样式设置完成，可视化图层已添加到地图")
             
-            self.log("点样式设置成功", level=0)
+            self.log("点样式设置成功，可视化图层已添加", level=0)
             return True
             
         except Exception as e:

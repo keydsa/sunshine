@@ -161,11 +161,9 @@ class SunshineDialog(QtWidgets.QDialog, FORM_CLASS):
                 self.spinBatchSize.setRange(100, 10000)
                 self.spinBatchSize.setValue(500)
             
-            # 添加进度条
-            self.progressBar = QProgressBar()
-            self.progressBar.setVisible(False)
-            if hasattr(self, 'layout'):
-                self.layout().addWidget(self.progressBar)
+            # 初始化进度条（UI文件中已存在，不需要重复创建）
+            if hasattr(self, 'progressBar'):
+                self.progressBar.setVisible(False)
             
             # 初始化坐标系选择
             self.selected_custom_crs = None
@@ -178,6 +176,12 @@ class SunshineDialog(QtWidgets.QDialog, FORM_CLASS):
                 self.checkGPU.setEnabled(self.gpu_available)
                 if not self.gpu_available:
                     self.checkGPU.setToolTip("GPU加速不可用，请安装CuPy和CUDA")
+            
+            # 自动填充图层下拉框
+            self.populate_layer_combos()
+            
+            # 初始化参数显示
+            self.update_parameters()
                 
         except Exception as e:
             print(f"UI初始化错误: {e}")
@@ -241,21 +245,29 @@ class SunshineDialog(QtWidgets.QDialog, FORM_CLASS):
     
     def validate_inputs(self):
         """验证输入文件"""
-        dem_path = self.lineEditDEM.text()
-        points_path = self.lineEditPoints.text()
-        
-        # 检查DEM文件
-        if dem_path and not os.path.exists(dem_path):
-            QMessageBox.warning(self, "警告", f"DEM文件不存在: {dem_path}")
+        # 检查DEM输入
+        dem_input = self.get_selected_dem()
+        if not dem_input:
+            QMessageBox.warning(self, "警告", "请选择DEM文件或DEM图层")
             return False
         
-        # 检查点数据文件
-        if points_path and not os.path.exists(points_path):
-            QMessageBox.warning(self, "警告", f"点数据文件不存在: {points_path}")
+        # 检查点数据输入
+        points_input = self.get_selected_points()
+        if not points_input:
+            QMessageBox.warning(self, "警告", "请选择点数据文件或点图层")
+            return False
+        
+        # 检查文件路径是否存在（如果使用文件路径）
+        if isinstance(dem_input, str) and not os.path.exists(dem_input):
+            QMessageBox.warning(self, "警告", f"DEM文件不存在: {dem_input}")
+            return False
+        
+        if isinstance(points_input, str) and not os.path.exists(points_input):
+            QMessageBox.warning(self, "警告", f"点数据文件不存在: {points_input}")
             return False
         
         # 检查输出目录
-        output_path = self.lineEditOutput.text()
+        output_path = self.get_output_path()
         if output_path:
             output_dir = os.path.dirname(output_path)
             if output_dir and not os.path.exists(output_dir):
@@ -291,14 +303,21 @@ class SunshineDialog(QtWidgets.QDialog, FORM_CLASS):
         """填充DEM和点图层下拉框"""
         if hasattr(self, 'comboDEM'):
             self.comboDEM.clear()
+            self.comboDEM.addItem("-- 选择DEM图层 --", "")
             for layer in QgsProject.instance().mapLayers().values():
                 if isinstance(layer, QgsRasterLayer):
                     self.comboDEM.addItem(layer.name(), layer.id())
+        
         if hasattr(self, 'comboPoints'):
             self.comboPoints.clear()
+            self.comboPoints.addItem("-- 选择点图层 --", "")
             for layer in QgsProject.instance().mapLayers().values():
                 if isinstance(layer, QgsVectorLayer) and layer.geometryType() == 0:
                     self.comboPoints.addItem(layer.name(), layer.id())
+    
+    def refresh_layer_combos(self):
+        """刷新图层下拉框"""
+        self.populate_layer_combos()
     
     def get_selected_dem(self):
         """优先返回下拉框选择的DEM图层，否则返回文件路径"""
@@ -403,6 +422,11 @@ class SunshineDialog(QtWidgets.QDialog, FORM_CLASS):
         dem_input = self.get_selected_dem()
         points_input = self.get_selected_points()
         output_path = self.get_output_path()
+        
+        # 验证输入
+        if not self.validate_inputs():
+            return
+        
         # 组装参数
         params = {
             'dem': dem_input,
@@ -415,9 +439,17 @@ class SunshineDialog(QtWidgets.QDialog, FORM_CLASS):
             'batch_size': self.spinBatchSize.value() if hasattr(self, 'spinBatchSize') else 500,
             'use_gpu': self.checkGPU.isChecked() if hasattr(self, 'checkGPU') else False,
         }
+        
         # 启动线程
-        self.progressBar.setVisible(True)
-        self.progressBar.setValue(0)
+        if hasattr(self, 'progressBar'):
+            self.progressBar.setVisible(True)
+            self.progressBar.setValue(0)
+        
+        # 禁用分析按钮，防止重复点击
+        if hasattr(self, 'btnAnalyze'):
+            self.btnAnalyze.setEnabled(False)
+            self.btnAnalyze.setText("分析中...")
+        
         self.analysis_thread = AnalysisThread(self.analyzer, params)
         self.analysis_thread.progress.connect(self.progressBar.setValue)
         self.analysis_thread.status.connect(self.update_status)
@@ -426,17 +458,37 @@ class SunshineDialog(QtWidgets.QDialog, FORM_CLASS):
     
     def update_status(self, message):
         """更新状态信息"""
-        self.labelStatus.setText(message)
+        if hasattr(self, 'labelStatus'):
+            self.labelStatus.setText(message)
         QgsMessageLog.logMessage(message, "Sunshine Analysis")
+        
+        # 如果消息包含进度信息，更新进度条
+        if "进度" in message or "%" in message:
+            try:
+                # 尝试从消息中提取进度百分比
+                import re
+                progress_match = re.search(r'(\d+)%', message)
+                if progress_match:
+                    progress = int(progress_match.group(1))
+                    if hasattr(self, 'progressBar'):
+                        self.progressBar.setValue(progress)
+            except:
+                pass
     
     def analysis_finished(self, success, message):
         """分析完成回调"""
-        self.progressBar.setVisible(False)
+        # 隐藏进度条
+        if hasattr(self, 'progressBar'):
+            self.progressBar.setVisible(False)
+        
+        # 恢复分析按钮状态
+        if hasattr(self, 'btnAnalyze'):
+            self.btnAnalyze.setEnabled(True)
+            self.btnAnalyze.setText("开始分析")
+        
+        # 显示结果消息
         QMessageBox.information(self, "分析完成" if success else "分析失败", message)
-        if success:
-            # 自动加载输出点矢量图层到QGIS
-            output_path = self.get_output_path()
-            iface.addVectorLayer(output_path, "分析结果", "ogr")
+        # 注意：不再自动添加原始结果图层，因为apply_point_style方法已经添加了带样式的可视化图层
     
     def closeEvent(self, event):
         """关闭事件"""
